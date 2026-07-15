@@ -34,6 +34,7 @@ th{background:#F0F2E8;font-weight:600;}
 .status-badge.pass{background:var(--success-bg);color:var(--success);}
 .status-badge.fail{background:var(--danger-bg);color:var(--danger);}
 .status-badge.none{background:#EFEFEA;color:var(--text-secondary);}
+.status-badge.ref{background:#FBF1DE;color:var(--gold-dark);border:1px solid #EFD9A8;}
 .disclaimer{font-size:11.5px;color:var(--text-muted);text-align:center;line-height:1.5;margin-top:14px;}
 .rounds-row td{background:#F7F8F2;font-size:11px;color:var(--text-secondary);padding:5px 8px;border-top:none;}
 .error-box{text-align:center;padding:3rem 1rem;color:var(--text-secondary);}
@@ -72,8 +73,9 @@ function render(){
 
   const dateStr = r.d ? new Date(r.d).toLocaleDateString('th-TH', {day:'numeric',month:'long',year:'numeric'}) : '—';
   const methodText = r.m==='mw' ? 'ไมโครเวฟ' : 'ตู้อบลมร้อน';
-  const statusText = r.st==='pass' ? 'ผ่านเกณฑ์' : r.st==='fail' ? 'ไม่ผ่านเกณฑ์' : 'ไม่มีเกณฑ์ทางการ';
-  const statusClass = r.st==='pass' ? 'pass' : r.st==='fail' ? 'fail' : 'none';
+  const hasThreshold = r.th!==null && r.th!==undefined;
+  const statusText = hasThreshold ? ('📖 เกณฑ์อ้างอิง (มกษ. 31-2567) ' + r.th + '%') : 'ไม่มีเกณฑ์อ้างอิง';
+  const statusClass = hasThreshold ? 'ref' : 'none';
 
   const rows = (r.s||[]).map(s=>`
     <tr>
@@ -90,7 +92,7 @@ function render(){
     <div class="card">
       <div class="pct-hero">
         <div class="val mono">${(r.pct||0).toFixed(1)}%</div>
-        <div class="status-badge ${statusClass}">${statusText}${r.th!==null && r.th!==undefined ? ' (เกณฑ์ '+r.th+'%)' : ''}</div>
+        <div class="status-badge ${statusClass}">${statusText}</div>
       </div>
     </div>
     <p class="section-label">ข้อมูลสวน</p>
