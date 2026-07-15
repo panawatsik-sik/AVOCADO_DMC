@@ -359,6 +359,7 @@ const dict = {
   tab_history:{th:'ประวัติ',en:'History'},
   lbl_sample:{th:'ข้อมูลตัวอย่าง',en:'Sample info'},
   lbl_variety:{th:'พันธุ์อะโวคาโด',en:'Variety'},
+  custom_variety_placeholder:{th:'ระบุชื่อพันธุ์...',en:'Enter variety name...'},
   lbl_farm:{th:'ชื่อสวน/เจ้าของ',en:'Farm / owner'},
   lbl_plot:{th:'แปลง',en:'Plot'},
   lbl_daa:{th:'DAA (วัน)',en:'DAA (days)'},
@@ -466,7 +467,7 @@ function showView(v){
    ปากช่อง 1) have no official number here — add one if you have it verified. */
 const thresholds = {
   'ปีเตอร์สัน':19, 'พิงเคอร์ตัน':20, 'แฮสส์':21, 'บักคาเนียร์':19,
-  'บูท 7':19, 'บูท 8':19, 'ฟูเอร์เต':null, 'รีด':null, 'ปากช่อง 1':null, 'อื่นๆ':null
+  'บูท 7':19, 'บูท 8':19, 'อื่นๆ':null
 };
 const VARIETY_OPTIONS = [
   { value:'ปีเตอร์สัน', th:'ปีเตอร์สัน', en:'Peterson' },
@@ -475,10 +476,7 @@ const VARIETY_OPTIONS = [
   { value:'บักคาเนียร์', th:'บักคาเนียร์', en:'Buccaneer' },
   { value:'บูท 7', th:'บูท 7', en:'Booth 7' },
   { value:'บูท 8', th:'บูท 8', en:'Booth 8' },
-  { value:'ฟูเอร์เต', th:'ฟูเอร์เต', en:'Fuerte' },
-  { value:'รีด', th:'รีด', en:'Reed' },
-  { value:'ปากช่อง 1', th:'ปากช่อง 1', en:'Pak Chong 1' },
-  { value:'อื่นๆ', th:'อื่นๆ', en:'Other' }
+  { value:'อื่นๆ', th:'อื่นๆ / พันธุ์พื้นเมือง', en:'Other / local variety' }
 ];
 
 /* ---------- drying method (global — applies to the whole inspection round) ---------- */
@@ -504,15 +502,16 @@ let sampleSeq = 0;
 
 function newSample(fresh, plate, dryQuick, rounds, fruitWeight){
   sampleSeq++;
-  return { id:'s'+sampleSeq, fresh: fresh, plate: plate, dryQuick: dryQuick, rounds: rounds, fruitWeight: fruitWeight||0 };
+  return { id:'s'+sampleSeq, fresh: fresh, plate: plate, dryQuick: dryQuick, rounds: rounds, fruitWeight: (fruitWeight===undefined?null:fruitWeight) };
 }
 function newFarm(){
   farmSeq++;
   return {
     id: 'f'+farmSeq,
     variety: VARIETY_OPTIONS[0].value,
+    customVariety: '',
     farmName: '', plot: '', daa: '', gps: '',
-    samples: [ newSample(20, 5.0, 11.6, [11.9, 11.6], 0) ]
+    samples: [ newSample(null, null, null, [null, null], null) ]
   };
 }
 function addFarm(){
@@ -533,7 +532,7 @@ function updateFarmField(farmId, field, value){
 function addSampleToFarm(farmId){
   const f = farms.find(x=>x.id===farmId);
   if(!f) return;
-  f.samples.push(newSample(20, 5.0, 11.6, [11.9, 11.6], 0));
+  f.samples.push(newSample(null, null, null, [null, null], null));
   renderFarms();
 }
 function removeSampleFromFarm(farmId, sampleId){
@@ -546,7 +545,9 @@ function updateSampleField(farmId, sampleId, field, value){
   const f = farms.find(x=>x.id===farmId);
   const s = f && f.samples.find(x=>x.id===sampleId);
   if(!s) return;
-  s[field] = parseFloat(value) || 0;
+  if(value===''){ s[field] = null; return; }
+  const v = parseFloat(value);
+  s[field] = isNaN(v) ? null : v;
 }
 function addRound(farmId, sampleId){
   const f = farms.find(x=>x.id===farmId);
@@ -599,20 +600,21 @@ function sampleDry(s){
 }
 
 function sampleCardHtml(f, s, sidx){
+  const vv = n => (n===null || n===undefined) ? '' : n;
   const fruitWeightRow = `
     <div class="field" style="margin-bottom:10px;">
       <label>${t('lbl_fruit_weight')}</label>
-      <input type="number" step="0.01" value="${s.fruitWeight}" placeholder="3.20" oninput="updateSampleField('${f.id}','${s.id}','fruitWeight',this.value)">
+      <input type="number" step="0.01" value="${vv(s.fruitWeight)}" placeholder="3.20" oninput="updateSampleField('${f.id}','${s.id}','fruitWeight',this.value)">
     </div>`;
   const plateFreshRow = `
     <div class="field-row" style="margin-bottom:10px;">
       <div class="field" style="margin-bottom:0;">
         <label>${t('lbl_fresh')}</label>
-        <input type="number" step="0.01" value="${s.fresh}" oninput="updateSampleField('${f.id}','${s.id}','fresh',this.value)">
+        <input type="number" step="0.01" value="${vv(s.fresh)}" placeholder="20.00" oninput="updateSampleField('${f.id}','${s.id}','fresh',this.value)">
       </div>
       <div class="field" style="margin-bottom:0;">
         <label>${t('lbl_plate')}</label>
-        <input type="number" step="0.01" value="${s.plate}" oninput="updateSampleField('${f.id}','${s.id}','plate',this.value)">
+        <input type="number" step="0.01" value="${vv(s.plate)}" placeholder="5.00" oninput="updateSampleField('${f.id}','${s.id}','plate',this.value)">
       </div>
     </div>`;
   let body;
@@ -622,7 +624,7 @@ function sampleCardHtml(f, s, sidx){
       ${plateFreshRow}
       <div class="field" style="margin-bottom:0;">
         <label>${t('lbl_dry')}</label>
-        <input type="number" step="0.01" value="${s.dryQuick}" oninput="updateSampleField('${f.id}','${s.id}','dryQuick',this.value)">
+        <input type="number" step="0.01" value="${vv(s.dryQuick)}" placeholder="11.60" oninput="updateSampleField('${f.id}','${s.id}','dryQuick',this.value)">
       </div>`;
   } else {
     const rows = s.rounds.map((r,i)=>`
@@ -671,6 +673,7 @@ function renderFarms(){
         <div class="field">
           <label>${t('lbl_variety')}</label>
           <select onchange="updateFarmField('${f.id}','variety',this.value)">${varietyOptions}</select>
+          ${f.variety==='อื่นๆ' ? `<input type="text" style="margin-top:8px;" value="${f.customVariety||''}" placeholder="${t('custom_variety_placeholder')}" oninput="updateFarmField('${f.id}','customVariety',this.value)">` : ''}
           ${chipHtml}
         </div>
         <div class="field-row">
@@ -732,6 +735,7 @@ let batchResultsCache = {};
 
 function computeFarmResult(f){
   const threshold = thresholds[f.variety];
+  const varietyName = (f.variety==='อื่นๆ' && f.customVariety && f.customVariety.trim()) ? f.customVariety.trim() : f.variety;
   const perSample = f.samples.map((s, idx)=>{
     const dry = sampleDry(s);
     const pct = s.fresh>0 ? (dry/s.fresh*100) : 0;
@@ -744,7 +748,7 @@ function computeFarmResult(f){
   /* no pass/fail judgment — threshold is shown as a reference value only (มกษ. 31-2567) */
   return {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
-    variety: f.variety, farm: f.farmName, plot: f.plot, daa: f.daa, gps: f.gps,
+    variety: varietyName, farm: f.farmName, plot: f.plot, daa: f.daa, gps: f.gps,
     method, wmode, samples: perSample, sampleCount: perSample.length,
     pct: Math.round(avgPct*10)/10, threshold, status: 'none',
     date: new Date().toISOString()
