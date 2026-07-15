@@ -184,6 +184,11 @@ input:focus,select:focus{outline:none;border-color:var(--gold-dark);box-shadow:0
 .status-badge.pass{background:var(--success-bg);color:var(--success);}
 .status-badge.fail{background:var(--danger-bg);color:var(--danger);}
 .status-badge.neutral{background:#EFEFEA;color:var(--text-secondary);}
+.ref-badge{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;
+  font-size:13px;font-weight:600;font-family:'Kanit';background:#FBF1DE;color:var(--gold-dark);
+  border:1px solid #EFD9A8;
+}
 .disclaimer{
   font-size:11.5px;color:var(--text-muted);text-align:center;margin-top:12px;line-height:1.5;
   padding:0 8px;
@@ -373,7 +378,8 @@ const dict = {
   btn_calc:{th:'คำนวณผล',en:'Calculate'},
   btn_save:{th:'บันทึกผลลัพธ์',en:'Save result'},
   disclaimer:{th:'ผลลัพธ์นี้เป็นเครื่องมือช่วยตัดสินใจเบื้องต้น ไม่ใช่ผลตรวจรับรองทางการจากหน่วยงานรัฐ',en:'This is a decision-support estimate, not an official government-certified result.'},
-  no_threshold:{th:'ไม่มีเกณฑ์ทางการ แสดงเฉพาะตัวเลข',en:'No official threshold — number only'},
+  no_threshold:{th:'ไม่มีเกณฑ์อ้างอิง แสดงเฉพาะตัวเลข',en:'No reference value — number only'},
+  reference_label:{th:'เกณฑ์อ้างอิง (มกษ. 31-2567)',en:'Reference (TAS 31-2024)'},
   threshold_label:{th:'เกณฑ์ขั้นต่ำ',en:'Min threshold'},
   pass:{th:'ผ่านเกณฑ์',en:'Pass'},
   fail:{th:'ไม่ผ่านเกณฑ์',en:'Below threshold'},
@@ -455,17 +461,20 @@ function showView(v){
 /* No official government dry-matter standard is built in for avocado
    (unlike durian's มกษ. 3-2567). Every variety shows the raw % only
    unless you add verified numbers here, e.g. 'แฮส': 23 */
+/* Dry-matter thresholds per มกษ. 31-2567 (ตารางที่ จ.2) — สำนักงานมาตรฐานสินค้าเกษตร
+   และอาหารแห่งชาติ (มกอช.). Varieties not listed in that table (ฟูเอร์เต, รีด,
+   ปากช่อง 1) have no official number here — add one if you have it verified. */
 const thresholds = {
-  'ปีเตอร์สัน':null, 'บัคคาเนีย':null, 'แฮส':null, 'พิงค์เคอร์ตัน':null,
-  'บูธ 7':null, 'บูธ 8':null, 'ฟูเอร์เต':null, 'รีด':null, 'ปากช่อง 1':null, 'อื่นๆ':null
+  'ปีเตอร์สัน':19, 'พิงเคอร์ตัน':20, 'แฮสส์':21, 'บักคาเนียร์':19,
+  'บูท 7':19, 'บูท 8':19, 'ฟูเอร์เต':null, 'รีด':null, 'ปากช่อง 1':null, 'อื่นๆ':null
 };
 const VARIETY_OPTIONS = [
   { value:'ปีเตอร์สัน', th:'ปีเตอร์สัน', en:'Peterson' },
-  { value:'บัคคาเนีย', th:'บัคคาเนีย', en:'Buccaneer' },
-  { value:'แฮส', th:'แฮส', en:'Hass' },
-  { value:'พิงค์เคอร์ตัน', th:'พิงค์เคอร์ตัน', en:'Pinkerton' },
-  { value:'บูธ 7', th:'บูธ 7', en:'Booth 7' },
-  { value:'บูธ 8', th:'บูธ 8', en:'Booth 8' },
+  { value:'พิงเคอร์ตัน', th:'พิงเคอร์ตัน', en:'Pinkerton' },
+  { value:'แฮสส์', th:'แฮสส์', en:'Hass' },
+  { value:'บักคาเนียร์', th:'บักคาเนียร์', en:'Buccaneer' },
+  { value:'บูท 7', th:'บูท 7', en:'Booth 7' },
+  { value:'บูท 8', th:'บูท 8', en:'Booth 8' },
   { value:'ฟูเอร์เต', th:'ฟูเอร์เต', en:'Fuerte' },
   { value:'รีด', th:'รีด', en:'Reed' },
   { value:'ปากช่อง 1', th:'ปากช่อง 1', en:'Pak Chong 1' },
@@ -732,13 +741,12 @@ function computeFarmResult(f){
     return { seq: idx+1, fruitWeight: s.fruitWeight||0, fresh: s.fresh, plate: s.plate||0, dry, pct: Math.round(pct*10)/10, rounds: rawRounds };
   });
   const avgPct = perSample.length ? perSample.reduce((a,b)=>a+b.pct,0)/perSample.length : 0;
-  const failingSamples = (threshold===null || threshold===undefined) ? [] : perSample.filter(p=>p.pct < threshold);
-  const status = (threshold===null || threshold===undefined) ? 'none' : (failingSamples.length===0 ? 'pass' : 'fail');
+  /* no pass/fail judgment — threshold is shown as a reference value only (มกษ. 31-2567) */
   return {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
     variety: f.variety, farm: f.farmName, plot: f.plot, daa: f.daa, gps: f.gps,
     method, wmode, samples: perSample, sampleCount: perSample.length,
-    pct: Math.round(avgPct*10)/10, threshold, status,
+    pct: Math.round(avgPct*10)/10, threshold, status: 'none',
     date: new Date().toISOString()
   };
 }
@@ -773,22 +781,29 @@ function renderBatchResults(results){
   const el = document.getElementById('batch-results');
   if(!results.length){ el.classList.add('hidden'); el.innerHTML=''; return; }
   el.classList.remove('hidden');
-  const rows = results.map(r=>{
-    const color = r.status==='pass' ? {bg:'#E7F3EA',fg:'#3F8F5C'} : r.status==='fail' ? {bg:'#FBEBE8',fg:'#C24A3D'} : {bg:'#EFEFEA',fg:'#5C6B57'};
+  const cards = results.map(r=>{
     const place = [r.farm, r.plot].filter(Boolean).join(' / ');
-    const statusText = r.status==='pass' ? t('pass') : r.status==='fail' ? t('fail') : t('no_threshold');
-    return `<div class="hist-card">
-      <div class="hist-pct" style="background:${color.bg};color:${color.fg};">${r.pct.toFixed(1)}%</div>
-      <div class="hist-body">
-        <p class="v">${r.variety}${place ? ' · '+place : ''}</p>
-        <p class="m">${statusText} · ${r.sampleCount||1} ${t('samples_count')}</p>
+    const hasThreshold = r.threshold!==null && r.threshold!==undefined;
+    const refText = hasThreshold ? ('📖 ' + t('reference_label') + ' ' + r.threshold + '%') : t('no_threshold');
+    return `<div class="card" style="margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div class="hist-pct" style="background:#EFEFEA;color:var(--text-secondary);flex-shrink:0;width:56px;height:56px;font-size:15px;">${r.pct.toFixed(1)}%</div>
+        <div style="min-width:0;">
+          <p style="font-size:13.5px;font-weight:600;font-family:'Kanit';margin:0;">${r.variety}${place ? ' · '+place : ''}</p>
+          <p style="font-size:12px;color:var(--text-secondary);margin:2px 0 0;">${r.sampleCount||1} ${t('samples_count')}</p>
+        </div>
       </div>
-      <button class="hist-del" onclick="downloadPDF(batchResultsCache['${r.id}'])" title="download PDF">📄</button>
-      <button class="hist-del" onclick="downloadExcel(batchResultsCache['${r.id}'])" title="download Excel">📊</button>
+      <div style="text-align:center;margin-bottom:12px;">
+        <span class="${hasThreshold ? 'ref-badge' : 'status-badge neutral'}">${refText}</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="ghost-btn" style="flex:1;padding:8px;" onclick="downloadPDF(batchResultsCache['${r.id}'])">📄 PDF</button>
+        <button class="ghost-btn" style="flex:1;padding:8px;" onclick="downloadExcel(batchResultsCache['${r.id}'])">📊 Excel</button>
+      </div>
     </div>`;
   }).join('');
-  el.innerHTML = `<p class="section-label">${t('batch_results_title')}</p>${rows}
-    <button class="ghost-btn" style="margin-top:10px;" onclick="downloadBatchExcel()">
+  el.innerHTML = `<p class="section-label">${t('batch_results_title')}</p>${cards}
+    <button class="ghost-btn" style="margin-top:4px;" onclick="downloadBatchExcel()">
       <span>📊</span> ${t('btn_excel_all')}
     </button>`;
 }
@@ -927,8 +942,7 @@ function buildReportHTML(r){
   const d = new Date(r.date);
   const dateStr = d.toLocaleDateString(lang==='th'?'th-TH':'en-GB', {day:'numeric',month:'long',year:'numeric'});
   const now = new Date().toLocaleString(lang==='th'?'th-TH':'en-GB');
-  const failNums = (r.status==='fail' && r.samples) ? r.samples.filter(s=>r.threshold!==null && s.pct < r.threshold).map(s=>s.seq).join(', ') : '';
-  const statusText = r.status==='pass' ? '✓ '+t('pass') : r.status==='fail' ? '✕ '+t('fail')+(failNums?' — '+t('sample_label')+' '+failNums:'') : t('no_threshold');
+  const statusText = (r.threshold!==null && r.threshold!==undefined) ? (t('reference_label') + ' ' + r.threshold + '%') : t('no_threshold');
   const rows = (r.samples||[]).map(s=>`
     <tr>
       <td>${t('sample_label')} ${s.seq}</td>
@@ -963,7 +977,7 @@ function buildReportHTML(r){
           </tr>
         </tbody>
       </table>
-      <p class="rpt-result">${r.threshold!==null && r.threshold!==undefined ? t('rpt_threshold')+' '+r.threshold+'% — '+statusText : statusText}</p>
+      <p class="rpt-result">${statusText}</p>
       <p style="font-size:11.5px;color:#555;">${t('disclaimer')}</p>
       <div class="rpt-qr-row">
         <div id="qr-code-box"></div>
@@ -1090,7 +1104,6 @@ function excelHeaderRows(r){
     [t('rpt_gps'), r.gps || ''],
     [t('rpt_threshold'), r.threshold!==null && r.threshold!==undefined ? r.threshold+'%' : t('no_threshold')],
     [t('rpt_avg_row'), r.pct+'%'],
-    [t('breakdown_title').replace('ผลแต่ละลูก','ผลรวม'), r.status==='pass' ? t('pass') : r.status==='fail' ? t('fail') : t('no_threshold')],
     []
   ];
 }
@@ -1133,15 +1146,14 @@ function buildRecordsWorkbook(records){
   });
   const wsSamples = XLSX.utils.aoa_to_sheet([sampleHeader, ...sampleRows]);
 
-  const batchHeader = [t('rpt_date'), t('rpt_farm'), t('rpt_plot'), t('rpt_variety'), t('rpt_method'), t('samples_count'), t('rpt_avg_row'), t('rpt_threshold'), t('pass')+'/'+t('fail')];
+  const batchHeader = [t('rpt_date'), t('rpt_farm'), t('rpt_plot'), t('rpt_variety'), t('rpt_method'), t('samples_count'), t('rpt_avg_row'), t('rpt_threshold')];
   const batchRows = records.map(r=>{
     const dateStr = new Date(r.date).toLocaleDateString('th-TH', {day:'numeric',month:'short',year:'numeric'});
     return [
       dateStr, r.farm||'', r.plot||'', r.variety,
       r.method==='mw' ? t('method_mw') : t('method_oven'),
       r.sampleCount||1, r.pct,
-      r.threshold!==null && r.threshold!==undefined ? r.threshold : '',
-      r.status==='pass' ? t('pass') : r.status==='fail' ? t('fail') : t('no_threshold')
+      r.threshold!==null && r.threshold!==undefined ? r.threshold : ''
     ];
   });
   const wsBatches = XLSX.utils.aoa_to_sheet([batchHeader, ...batchRows]);
@@ -1204,15 +1216,18 @@ async function renderHistory(){
     return;
   }
   list.innerHTML = filtered.map(r=>{
-    const color = r.status==='pass' ? {bg:'#E7F3EA',fg:'#3F8F5C'} : r.status==='fail' ? {bg:'#FBEBE8',fg:'#C24A3D'} : {bg:'#EFEFEA',fg:'#5C6B57'};
+    const color = {bg:'#EFEFEA',fg:'#5C6B57'};
     const d = new Date(r.date);
     const dateStr = d.toLocaleDateString(lang==='th'?'th-TH':'en-GB', {day:'numeric',month:'short',year:'numeric'});
     const place = [r.farm, r.plot].filter(Boolean).join(' / ') || t('no_farm_name');
+    const hasThreshold = r.threshold!==null && r.threshold!==undefined;
+    const refHtml = hasThreshold ? `<span style="color:var(--gold-dark);font-weight:600;">📖 ${t('reference_label')} ${r.threshold}%</span>` : t('no_threshold');
     return `<div class="hist-card">
       <div class="hist-pct" style="background:${color.bg};color:${color.fg};">${r.pct.toFixed(1)}%</div>
       <div class="hist-body">
         <p class="v">${place}</p>
-        <p class="m">${r.variety} · ${dateStr} · ${r.method==='mw' ? t('method_mw') : t('method_oven')} · ${r.sampleCount||1} ${t('samples_count')}</p>
+        <p class="m">${r.variety} · ${dateStr} · ${r.sampleCount||1} ${t('samples_count')}</p>
+        <p class="m" style="margin-top:2px;">${refHtml}</p>
       </div>
       <button class="hist-del" onclick="downloadPDF(historyCache['${r.id}'])" title="download PDF">📄</button>
       <button class="hist-del" onclick="downloadExcel(historyCache['${r.id}'])" title="download Excel">📊</button>
