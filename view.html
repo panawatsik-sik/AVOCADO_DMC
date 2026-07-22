@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ข้อมูลดิบผลตรวจ — แอปหาน้ำหนักแห้งอะโวคาโด</title>
+<title>ข้อมูลดิบผลตรวจ — แอปหาน้ำหนักแห้ง</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -43,8 +43,8 @@ th{background:#F0F2E8;font-weight:600;}
 </head>
 <body>
 <div class="topbar">
-  <h1>ข้อมูลดิบผลตรวจน้ำหนักเนื้อแห้งอะโวคาโด</h1>
-  <p>แอปหาน้ำหนักแห้งอะโวคาโด · หน้าดูข้อมูลย้อนหลังจากการสแกน QR</p>
+  <h1 id="hdr-title">ข้อมูลดิบผลตรวจน้ำหนักเนื้อแห้ง</h1>
+  <p id="hdr-sub">หน้าดูข้อมูลย้อนหลังจากการสแกน QR</p>
 </div>
 <main id="main"></main>
 
@@ -73,9 +73,28 @@ function render(){
 
   const dateStr = r.d ? new Date(r.d).toLocaleDateString('th-TH', {day:'numeric',month:'long',year:'numeric'}) : '—';
   const methodText = r.m==='mw' ? 'ไมโครเวฟ' : 'ตู้อบลมร้อน';
+
+  // fruit type: 'durian' judges pass/fail; 'avocado' is reference-only.
+  // Old QR codes: durian ones carry st=pass/fail; avocado ones have st absent/none.
+  const fruit = r.fr || (r.st==='pass'||r.st==='fail' ? 'durian' : 'avocado');
   const hasThreshold = r.th!==null && r.th!==undefined;
-  const statusText = hasThreshold ? ('📖 เกณฑ์อ้างอิง (มกษ. 31-2567) ' + r.th + '%') : 'ไม่มีเกณฑ์อ้างอิง';
-  const statusClass = hasThreshold ? 'ref' : 'none';
+
+  // update header/title for the fruit
+  const fruitNameTh = fruit==='avocado' ? 'อะโวคาโด' : 'ทุเรียน';
+  document.title = 'ข้อมูลดิบผลตรวจ — แอปหาน้ำหนักแห้ง' + fruitNameTh;
+  document.getElementById('hdr-title').textContent = 'ข้อมูลดิบผลตรวจน้ำหนักเนื้อแห้ง' + fruitNameTh;
+  document.getElementById('hdr-sub').textContent = 'แอปหาน้ำหนักแห้ง' + fruitNameTh + ' · หน้าดูข้อมูลย้อนหลังจากการสแกน QR';
+
+  let statusText, statusClass;
+  if(fruit==='avocado'){
+    // reference-only, never pass/fail
+    statusText = hasThreshold ? ('📖 เกณฑ์อ้างอิง (มกษ. 31-2567) ' + r.th + '%') : 'ไม่มีเกณฑ์อ้างอิง';
+    statusClass = hasThreshold ? 'ref' : 'none';
+  } else {
+    // durian official pass/fail
+    statusText = r.st==='pass' ? 'ผ่านเกณฑ์' : r.st==='fail' ? 'ไม่ผ่านเกณฑ์' : 'ไม่มีเกณฑ์ทางการ';
+    statusClass = r.st==='pass' ? 'pass' : r.st==='fail' ? 'fail' : 'none';
+  }
 
   const rows = (r.s||[]).map(s=>`
     <tr>
@@ -92,7 +111,7 @@ function render(){
     <div class="card">
       <div class="pct-hero">
         <div class="val mono">${(r.pct||0).toFixed(1)}%</div>
-        <div class="status-badge ${statusClass}">${statusText}</div>
+        <div class="status-badge ${statusClass}">${statusText}${(fruit!=='avocado' && hasThreshold) ? ' (เกณฑ์ '+r.th+'%)' : ''}</div>
       </div>
     </div>
     <p class="section-label">ข้อมูลสวน</p>
@@ -117,7 +136,7 @@ function render(){
       </table>
       <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">น้ำหนักแห้งสุทธิ = น้ำหนักรอบสุดท้าย − น้ำหนักจาน (รอบสุดท้ายคือรอบที่น้ำหนักคงที่แล้ว)</p>
     </div>
-    <p class="disclaimer">ข้อมูลนี้ถอดรหัสมาจาก QR code โดยตรง ไม่ได้ดึงจากฐานข้อมูลกลาง เป็นเครื่องมือช่วยตัดสินใจเบื้องต้น ไม่ใช่ผลตรวจรับรองทางการจากหน่วยงานรัฐ</p>
+    <p class="disclaimer">ข้อมูลนี้ถอดรหัสมาจาก QR code โดยตรง ไม่ได้ดึงจากฐานข้อมูลกลาง</p>
   `;
 }
 render();
