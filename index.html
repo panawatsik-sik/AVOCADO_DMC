@@ -864,9 +864,11 @@ async function showVisitCount(){
       .from('app_sessions')
       .select('*', { count: 'exact', head: true })
       .eq('app_name', 'avocado');
-    if(error || count===null || count===undefined) return;
+    if(error){ console.warn('[visit-counter] Supabase error:', error.message, '— ตรวจ RLS policy: role anon ต้องมีสิทธิ์ SELECT บนตาราง app_sessions'); return; }
+    if(count===null || count===undefined){ console.warn('[visit-counter] count is null — likely RLS blocks SELECT for anon'); return; }
+    console.log('[visit-counter] count =', count);
     el.textContent = t('visit_count') + ' ' + count.toLocaleString(lang==='th'?'th-TH':'en-US') + ' ' + t('visit_times');
-  }catch(e){ /* non-critical */ }
+  }catch(e){ console.warn('[visit-counter] exception:', e.message); }
 }
 
 /* usage analytics: one row per app open — query this table directly
